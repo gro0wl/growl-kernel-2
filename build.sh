@@ -50,7 +50,7 @@ export PATH="$CLANG_DIR/bin:$PATH"
 export LD_LIBRARY_PATH="$CLANG_DIR/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-GROWL}"
 export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-github-actions}"
-export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M:%S')}"
+export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP:-$(date -u '+%a %b %d %H:%M:%S UTC %Y')}"
 log "Building $DEFCONFIG with Clang $($CLANG_DIR/bin/clang --version | head -n 1)"
 log "Source revision: $SOURCE_REV"
 
