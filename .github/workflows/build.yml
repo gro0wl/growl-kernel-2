@@ -1,0 +1,45 @@
+name: Build ShockWave Selene
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential curl device-tree-compiler flex git \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf \
+            libelf-dev libncurses-dev libssl-dev python3 zip zlib1g-dev
+
+      - name: Build kernel and flashable ZIP
+        run: bash build.sh
+
+      - name: Upload flashable ZIP
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShockWave-selene-${{ github.sha }}
+          path: out/target/ShockWave-selene-*.zip
+          if-no-files-found: error
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.sha }}
+          path: out/build.log
+          if-no-files-found: warn
