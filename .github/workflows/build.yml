@@ -57,7 +57,7 @@ jobs:
         if: success()
         shell: bash
         run: |
-          KERNEL_VERSION="$(make -s O=out ARCH=arm64 kernelrelease)"
+          KERNEL_VERSION="$(cat out/include/config/kernel.release)"
           TAG="growl-kernel-2.0-selene-${BUILD_TAG_TIMESTAMP}-${GITHUB_SHA:0:12}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
           TITLE="GROWL KERNEL 2.0 Selene | ${KERNEL_VERSION} | ${BUILD_DATETIME}"
           COMMIT_MESSAGE="$(git log -1 --format=%B "$GITHUB_SHA")"
