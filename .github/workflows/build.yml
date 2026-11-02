@@ -1,4 +1,4 @@
-name: Build ShockWave Selene
+name: Build GROWL KERNEL 2.0 (Selene)
 
 on:
   push:
@@ -32,8 +32,8 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ShockWave-selene-${{ github.sha }}
-          path: out/target/ShockWave-selene-*.zip
+          name: GROWL-KERNEL-2.0-selene-${{ github.sha }}
+          path: out/target/GROWL-KERNEL-2.0-selene-*.zip
           if-no-files-found: error
 
       - name: Upload build log

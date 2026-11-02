@@ -4,7 +4,7 @@
 ### AnyKernel setup
 ## begin properties
 properties() { '
-kernel.string=ShockWave Kernel
+kernel.string=GROWL KERNEL 2.0
 do.devicecheck=1
 do.modules=0
 do.systemless=1

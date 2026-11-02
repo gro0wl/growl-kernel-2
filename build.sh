@@ -14,7 +14,7 @@ ANYKERNEL_REF="${ANYKERNEL_REF:-master}"
 BUILD_JOBS="${BUILD_JOBS:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)}"
 BUILD_DATE="$(date -u +%Y%m%d)"
 SOURCE_REV="$(git rev-parse --short=12 HEAD 2>/dev/null || printf 'local')"
-ZIP_NAME="${ZIP_NAME:-ShockWave-selene-${BUILD_DATE}-${SOURCE_REV}.zip}"
+ZIP_NAME="${ZIP_NAME:-GROWL-KERNEL-2.0-selene-${BUILD_DATE}-${SOURCE_REV}.zip}"
 BUILD_LOG="${BUILD_LOG:-$OUT_DIR/build.log}"
 ZIP_PATH="$OUT_DIR/target/$ZIP_NAME"
 
