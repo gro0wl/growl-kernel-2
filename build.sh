@@ -51,8 +51,6 @@ export LD_LIBRARY_PATH="$CLANG_DIR/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-GROWL}"
 export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-github-actions}"
 export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M:%S')}"
-export LOCALVERSION="-g${SOURCE_REV}"
-
 log "Building $DEFCONFIG with Clang $($CLANG_DIR/bin/clang --version | head -n 1)"
 log "Source revision: $SOURCE_REV"
 
@@ -88,6 +86,6 @@ cp "$ROOT_DIR/anykernel/anykernel.sh" "$AK_PACKAGE_DIR/anykernel.sh"
 cp "$KERNEL_IMAGE" "$AK_PACKAGE_DIR/Image.gz-dtb"
 
 rm -f "$ZIP_PATH"
-(cd "$AK_PACKAGE_DIR" && zip -qr9 "$ZIP_PATH" . -x '.git' '.git/*' 'README.md')
+(cd "$AK_PACKAGE_DIR" && zip -qr9 "$ZIP_PATH" . -x '.git' '.git/*' '.github' '.github/*' 'README.md')
 
 log "Flashable ZIP: $ZIP_PATH"
