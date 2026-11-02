@@ -596,6 +596,9 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 #endif
 	params->dsi.CLK_HS_POST = 36;
 	params->dsi.clk_lp_per_line_enable = 0;
+	#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	params->dsi.esd_check_enable = 1;
+	#endif
 	//params->dsi.esd_check_enable = 1;
 	params->dsi.customization_esd_check_enable = 0;
 	/*params->dsi.lcm_esd_check_table[0].cmd = 0x0a;
@@ -723,6 +726,20 @@ static void lcm_resume(void)
 	lcm_init();
 }
 
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+extern int32_t fts_ts_tp_suspend(void);
+extern int32_t fts_ts_tp_resume(void);
+
+static unsigned int lcm_esd_recover(void)
+{
+	fts_ts_tp_suspend();
+	lcm_init_power();
+	lcm_init();
+	fts_ts_tp_resume();
+	return 0;
+}
+#endif
+
 static unsigned int lcm_ata_check(unsigned char *buffer)
 {
 #ifndef BUILD_LK
@@ -845,4 +862,7 @@ struct LCM_DRIVER dsi_panel_k19a_43_02_0b_dsc_vdo_lcm_drv = {
 	.ata_check = lcm_ata_check,
 	.update = lcm_update,
 	.set_hw_info = lcm_set_hw_info,
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	.esd_recover = lcm_esd_recover,
+#endif
 };

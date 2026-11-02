@@ -111,8 +111,11 @@
 #define FTS_PATCH_COMERR_PM					 0
 #define FTS_TIMEOUT_COMERR_PM				   700
 
+#define FTS_HIGH_REPORT						 0
+#define FTS_SIZE_DEFAULT						15
+#define FTS_TP_ADD							  1
 #define FOCAL_LOCKDOWN							0
-//#define FTS_TP_DATA_DUMP_EN                     //create procfs /proc/tp_data_dump
+#define FTS_TP_DATA_DUMP_EN                     //create procfs /proc/tp_data_dump
 #if FOCAL_LOCKDOWN
 #define TP_LOCKDOWN_INFO "tp_lockdown_info"
 int fts_palm_sensor_cmd(int);

@@ -170,6 +170,12 @@ config MTK_DRE30_SUPPORT
 	  This feature requires the cowork of AAL user-space algorithm process.
 	  Please also turn on MTK_AAL_SUPPORT amd MTK_DRE30_SUPPORT in ProjectConfig.mk.
 
+config MI_ERRFLAG_ESD_CHECK_ENABLE
+	bool "Use display error flag for ESD checks"
+	default n
+	help
+	  Coordinate display ESD recovery with the FocalTech touchscreen driver.
+
 config MTK_DISPLAY_LOW_MEMORY_DEBUG_SUPPORT
 	bool "enable medietak display low memory debug"
 	default y

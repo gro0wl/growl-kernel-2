@@ -1,10 +1,8 @@
-#
 # Focaltech Touchscreen driver configuration
-#
 
 config TOUCHSCREEN_FT8720M
 	bool "Focaltech Touchscreen"
 	default n
 	help
-	  Say Y here if you have Focaltech touch panel.
+	  Say Y here if you have Focaltech FT8720M touch panel.
 	  If unsure, say N.

@@ -83,6 +83,11 @@ static wait_queue_head_t esd_ext_te_wq;
 /* For EXT TE EINT Check */
 static atomic_t esd_ext_te_event = ATOMIC_INIT(0);
 
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+atomic_t lcm_ready = ATOMIC_INIT(0);
+atomic_t lcm_valid_irq = ATOMIC_INIT(0);
+#endif
+
 static unsigned int esd_check_mode;
 static unsigned int esd_check_enable;
 unsigned int esd_checking;
@@ -247,11 +252,24 @@ int _esd_check_config_handle_vdo(struct cmdqRecStruct *qhandle)
 /* For EXT TE EINT Check */
 static irqreturn_t _esd_check_ext_te_irq_handler(int irq, void *data)
 {
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	if (atomic_read(&lcm_ready)) {
+		if (atomic_read(&lcm_valid_irq)) {
+			atomic_set(&lcm_valid_irq, 0);
+		} else {
+			atomic_set(&esd_ext_te_event, 1);
+			wake_up_interruptible(&esd_ext_te_wq);
+		}
+	} else {
+		atomic_set(&lcm_valid_irq, 1);
+	}
+#else
 	mmprofile_log_ex(ddp_mmp_get_events()->esd_vdo_eint,
 		MMPROFILE_FLAG_PULSE, 0, 0);
 	atomic_set(&esd_ext_te_event, 1);
 	DISPINFO("[ESD]%s\n", __func__);
 	wake_up_interruptible(&esd_ext_te_wq);
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -279,9 +297,15 @@ int do_esd_check_eint(void)
 
 	if (wait_event_interruptible_timeout(esd_ext_te_wq,
 		atomic_read(&esd_ext_te_event), HZ / 2) > 0)
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+		ret = 1; /* error flag asserted: ESD recovery required */
+	else
+		ret = 0; /* no error flag */
+#else
 		ret = 0; /* esd check pass */
 	else
 		ret = 1; /* esd check fail */
+#endif
 
 	atomic_set(&esd_ext_te_event, 0);
 
@@ -568,7 +592,9 @@ DISPTORY:
 int primary_display_esd_check(void)
 {
 	int ret = 0;
+#ifndef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
 	unsigned int mode;
+#endif
 	mmp_event mmp_te = ddp_mmp_get_events()->esd_extte;
 	mmp_event mmp_rd = ddp_mmp_get_events()->esd_rdlcm;
 	mmp_event mmp_chk = ddp_mmp_get_events()->esd_check_t;
@@ -593,6 +619,9 @@ int primary_display_esd_check(void)
 		/* use TE for esd check */
 		mmprofile_log_ex(mmp_te, MMPROFILE_FLAG_START, 0, 0);
 
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+		ret = do_esd_check_eint();
+#else
 		if (primary_display_is_video_mode()) {
 			mode = get_esd_check_mode();
 			if (mode == GPIO_EINT_MODE) {
@@ -606,6 +635,7 @@ int primary_display_esd_check(void)
 			}
 		} else
 			ret = do_esd_check_eint();
+#endif
 
 		mmprofile_log_ex(mmp_te, MMPROFILE_FLAG_END, 0, ret);
 
@@ -646,7 +676,7 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 	struct sched_param param = {.sched_priority = 87 };
 	int ret = 0;
 	int i = 0;
-	int esd_try_cnt = 1; /* 20; */
+	int esd_try_cnt = 5; /* 20; */
 	int recovery_done = 0;
 
 	sched_setscheduler(current, SCHED_RR, &param);
@@ -660,6 +690,11 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 			DISPINFO("[ESD]check thread waked up accidently\n");
 			continue;
 		}
+
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+		if (!atomic_read(&lcm_ready))
+			continue;
+#endif
 
 		_primary_path_switch_dst_lock();
 
@@ -726,6 +761,10 @@ int primary_display_esd_recovery(void)
 	dprec_logger_start(DPREC_LOGGER_ESD_RECOVERY, 0, 0);
 	mmprofile_log_ex(mmp_r, MMPROFILE_FLAG_START, 0, 0);
 	DISPCHECK("[ESD]ESD recovery begin\n");
+
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	atomic_set(&lcm_ready, 0);
+#endif
 
 	primary_display_manual_lock();
 	mmprofile_log_ex(mmp_r, MMPROFILE_FLAG_PULSE,
@@ -903,6 +942,10 @@ done:
 	DISPCHECK("[ESD]ESD recovery end\n");
 	mmprofile_log_ex(mmp_r, MMPROFILE_FLAG_END, 0, 0);
 	dprec_logger_done(DPREC_LOGGER_ESD_RECOVERY, 0, 0);
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	atomic_set(&lcm_ready, 1);
+	atomic_set(&lcm_valid_irq, 1);
+#endif
 	return ret;
 }
 
@@ -914,7 +957,11 @@ void primary_display_requset_eint(void)
 	params = primary_get_lcm()->params;
 	if (params->dsi.customization_esd_check_enable == 0) {
 		node = of_find_compatible_node(NULL, NULL,
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+				"mediatek, dsi_err-flag");
+#else
 				"mediatek, DSI_TE-eint");
+#endif
 		if (!node) {
 			DISPERR(
 				"[ESD][%s] can't find DSI_TE-eint eint compatible node\n",
@@ -925,7 +972,11 @@ void primary_display_requset_eint(void)
 		/* 1.register irq handler */
 		te_irq = irq_of_parse_and_map(node, 0);
 		if (request_irq(te_irq, _esd_check_ext_te_irq_handler,
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+				IRQF_TRIGGER_FALLING, "dsi_err-flag", NULL)) {
+#else
 				IRQF_TRIGGER_FALLING, "DSI_TE-eint", NULL)) {
+#endif
 			DISPERR("[ESD]EINT IRQ LINE NOT AVAILABLE!\n");
 			return;
 		}
