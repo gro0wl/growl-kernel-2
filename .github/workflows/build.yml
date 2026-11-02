@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -39,16 +39,61 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-clang14-ccache-${{ hashFiles('build.sh') }}-
 
+      - name: Record build timestamp
+        run: |
+          BUILD_EPOCH="$(date -u +%s)"
+          KBUILD_TIMESTAMP="$(date -u -d "@${BUILD_EPOCH}" '+%a %b %d %H:%M:%S UTC %Y')"
+          BUILD_DATETIME="$(date -u -d "@${BUILD_EPOCH}" '+%Y-%m-%d %H:%M:%S UTC')"
+          BUILD_TAG_TIMESTAMP="$(date -u -d "@${BUILD_EPOCH}" '+%Y%m%d-%H%M%S')"
+          echo "KBUILD_BUILD_TIMESTAMP=${KBUILD_TIMESTAMP}" >> "$GITHUB_ENV"
+          echo "BUILD_DATETIME=${BUILD_DATETIME}" >> "$GITHUB_ENV"
+          echo "BUILD_TAG_TIMESTAMP=${BUILD_TAG_TIMESTAMP}" >> "$GITHUB_ENV"
+
       - name: Build kernel and flashable ZIP
         run: bash build.sh
 
-      - name: Upload flashable ZIP
+      - name: Prepare release metadata
+        id: release-metadata
         if: success()
-        uses: actions/upload-artifact@v4
+        shell: bash
+        run: |
+          KERNEL_VERSION="$(make -s O=out ARCH=arm64 kernelrelease)"
+          TAG="growl-kernel-2.0-selene-${BUILD_TAG_TIMESTAMP}-${GITHUB_SHA:0:12}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+          TITLE="GROWL KERNEL 2.0 Selene | ${KERNEL_VERSION} | ${BUILD_DATETIME}"
+          COMMIT_MESSAGE="$(git log -1 --format=%B "$GITHUB_SHA")"
+
+          {
+            echo "tag=${TAG}"
+            echo "title=${TITLE}"
+            echo "notes_path=${RUNNER_TEMP}/release-notes.md"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "# GROWL KERNEL 2.0"
+            echo
+            echo "- Device: Xiaomi Redmi 9 (Selene)"
+            echo "- Kernel version: ${KERNEL_VERSION}"
+            echo "- Build date and time: ${BUILD_DATETIME}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Workflow run: ${GITHUB_RUN_ID} (attempt ${GITHUB_RUN_ATTEMPT})"
+            echo
+            echo "## Commit message"
+            echo
+            printf '%s\n' "$COMMIT_MESSAGE"
+          } > "${RUNNER_TEMP}/release-notes.md"
+
+      - name: Publish GitHub release
+        if: success()
+        uses: softprops/action-gh-release@v2
         with:
-          name: GROWL-KERNEL-2.0-selene-${{ github.sha }}
-          path: out/target/GROWL-KERNEL-2.0-selene-*.zip
-          if-no-files-found: error
+          tag_name: ${{ steps.release-metadata.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.release-metadata.outputs.title }}
+          body_path: ${{ steps.release-metadata.outputs.notes_path }}
+          files: out/target/GROWL-KERNEL-2.0-selene-*.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload build log
         if: always()
