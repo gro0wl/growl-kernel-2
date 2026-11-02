@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2010 - 2018 Novatek, Inc.
+ *
+ * $Revision$
+ * $Date$
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
+&spi5 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-names = "default", "gt9896s_spi_mode";
+	pinctrl-0 = <&ctp_gt9896s_pins_default>;
+	pinctrl-1 = <&ctp_gt9896s_spi_mode>;
+	/* Novatek device tree node */
+	novatek@0 {
+		compatible = "novatek,NVT-ts-spi";
+		reg = <0>; //Same as CS ID
+		status = "okay";
+		//4800000,9600000,15000000,19200000
+		spi-max-frequency = <4800000>;
+
+		novatek,reset-gpio = <&pio 2 0x00>;
+		novatek,irq-gpio = <&pio 1 0x00>;
+
+		/* 525 */
+		//novatek,swrst-n8-addr = <0x01F01A>;
+
+		/* 672A, 525B, 675, 526 */
+		novatek,swrst-n8-addr = <0x03F0FE>;
+		novatek,spi-rd-fast-addr = <0x03F310>;
+	};
+};
+
+&pio {
+	ctp_gt9896s_pins_default: pins_default {
+	};
+	ctp_gt9896s_spi_mode: spimode_default {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO51__FUNC_SPI5_B_CLK>,
+				<PINMUX_GPIO52__FUNC_SPI5_B_CSB>,
+				<PINMUX_GPIO198__FUNC_SPI5_B_MI>,
+				<PINMUX_GPIO199__FUNC_SPI5_B_MO>;
+			drive-strength = <4>;
+		};
+	};
+};
