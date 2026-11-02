@@ -1312,6 +1312,7 @@ void nvt_esd_check_enable(uint8_t enable)
 static void nvt_esd_check_func(struct work_struct *work)
 {
 	unsigned int timer = jiffies_to_msecs(jiffies - irq_timer);
+	extern bool g_trigger_disp_esd_recovery;
 
 	//NVT_LOG("esd_check = %d (retry %d)\n", esd_check, esd_retry);	//DEBUG
 /* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
@@ -1330,6 +1331,7 @@ static void nvt_esd_check_func(struct work_struct *work)
 			NVT_ERR("esd_retry=%d, set g_trigger_disp_esd_recovery true!\n", esd_retry);
 			nvt_esd_check_enable(false);
 			esd_retry = 0;
+			g_trigger_disp_esd_recovery = true;
 		}
 	}
 /* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 end */

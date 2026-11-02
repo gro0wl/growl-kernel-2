@@ -796,6 +796,7 @@ static void nvt_read_bld_hw_crc(void)
 }
 /* Huaqin modify for HQ-144782 by caogaojie at 2021/07/05 start */
 #if NVT_TOUCH_ESD_DISP_RECOVERY
+extern bool g_trigger_disp_esd_recovery;
 static int32_t nvt_check_crc_done_ilm_err(void)
 {
 	uint8_t buf[8] = {0};
@@ -881,6 +882,7 @@ fail:
 #if NVT_TOUCH_ESD_DISP_RECOVERY
 			if (nvt_check_crc_done_ilm_err()) {
 				NVT_ERR("set g_trigger_disp_esd_recovery true!\n");
+				g_trigger_disp_esd_recovery = true;
 			}
 #endif /* #if NVT_TOUCH_ESD_DISP_RECOVERY */
 			break;

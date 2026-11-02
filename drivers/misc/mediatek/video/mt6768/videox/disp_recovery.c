@@ -87,6 +87,7 @@ static atomic_t esd_ext_te_event = ATOMIC_INIT(0);
 atomic_t lcm_ready = ATOMIC_INIT(0);
 atomic_t lcm_valid_irq = ATOMIC_INIT(0);
 #endif
+bool g_trigger_disp_esd_recovery;
 
 static unsigned int esd_check_mode;
 static unsigned int esd_check_enable;
@@ -308,6 +309,7 @@ int do_esd_check_eint(void)
 #endif
 
 	atomic_set(&esd_ext_te_event, 0);
+	ret = ret || g_trigger_disp_esd_recovery;
 
 	primary_display_switch_esd_mode(GPIO_DSI_MODE);
 

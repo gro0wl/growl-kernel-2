@@ -26,6 +26,10 @@
 #include "../../../../input/touchscreen/mediatek/NT36xxx_SPI/nt36xxx.h"
 #include "mtk_boot_common.h"
 #include <linux/hqsysfs.h>
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+static bool esd_flag;
+extern bool g_trigger_disp_esd_recovery;
+#endif
 #ifdef BUILD_LK
 #  include <platform/upmu_common.h>
 #  include <platform/mt_gpio.h>
@@ -645,6 +649,21 @@ static void lcm_init(void)
       	MDELAY(5);
       	SET_RESET_PIN(1);
 	MDELAY(10);
+	#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	if (esd_flag) {
+#if NVT_TOUCH_VDD_TP_RECOVERY
+		nvt_bootloader_reset_locked();
+		push_table(NULL, tp_reset_cmd1, ARRAY_SIZE(tp_reset_cmd1), 1);
+		MDELAY(10);
+		nvt_esd_vdd_tp_recovery();
+		MDELAY(20);
+		push_table(NULL, tp_reset_cmd2, ARRAY_SIZE(tp_reset_cmd2), 1);
+		MDELAY(10);
+#endif
+		esd_flag = false;
+		g_trigger_disp_esd_recovery = false;
+	}
+	#endif
 
 		LCM_LOGI("[DENNIS][%s][%d]\n", __func__, __LINE__);
 
@@ -672,15 +691,16 @@ static void lcm_resume(void)
 }
 
 #ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
-extern int32_t fts_ts_tp_suspend(void);
-extern int32_t fts_ts_tp_resume(void);
-
-static unsigned int lcm_esd_recover(void)
+static unsigned int lcd_esd_recover(void)
 {
-	fts_ts_tp_suspend();
+	esd_flag = true;
 	lcm_init_power();
 	lcm_init();
-	fts_ts_tp_resume();
+	if (ts) {
+		mutex_lock(&ts->lock);
+		nvt_update_firmware(BOOT_UPDATE_FIRMWARE_NAME);
+		mutex_unlock(&ts->lock);
+	}
 	return 0;
 }
 #endif
@@ -809,6 +829,6 @@ struct LCM_DRIVER dsi_panel_k19a_36_02_0a_dsc_vdo_lcm_drv = {
 	.update = lcm_update,
 	.set_hw_info = lcm_set_hw_info,
 #ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
-	.esd_recover = lcm_esd_recover,
+	.esd_recover = lcd_esd_recover,
 #endif
 };
