@@ -22,8 +22,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             bc bison build-essential curl device-tree-compiler flex git \
-            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf \
+            ccache gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf \
             libelf-dev libncurses-dev libssl-dev python3 zip zlib1g-dev
+
+      - name: Cache Clang toolchain
+        uses: actions/cache@v4
+        with:
+          path: clang
+          key: ${{ runner.os }}-clang-14.0.6-20261022
+
+      - name: Cache compiler results
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-clang14-ccache-${{ hashFiles('build.sh') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-clang14-ccache-${{ hashFiles('build.sh') }}-
 
       - name: Build kernel and flashable ZIP
         run: bash build.sh

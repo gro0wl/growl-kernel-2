@@ -51,6 +51,11 @@ export LD_LIBRARY_PATH="$CLANG_DIR/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-GROWL}"
 export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-github-actions}"
 export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP:-$(date -u '+%a %b %d %H:%M:%S UTC %Y')}"
+CCACHE_WRAPPER=""
+if command -v ccache >/dev/null 2>&1; then
+	CCACHE_WRAPPER="ccache "
+	ccache --max-size=2G 2>&1 | tee -a "$BUILD_LOG"
+fi
 log "Building $DEFCONFIG with Clang $($CLANG_DIR/bin/clang --version | head -n 1)"
 log "Source revision: $SOURCE_REV"
 
@@ -58,7 +63,7 @@ make O="$OUT_DIR" ARCH="$ARCH" "$DEFCONFIG" 2>&1 | tee -a "$BUILD_LOG"
 
 make -j"$BUILD_JOBS" O="$OUT_DIR" \
 	ARCH="$ARCH" \
-	CC=clang \
+	CC="${CCACHE_WRAPPER}clang" \
 	LD=ld.lld \
 	LLVM=1 \
 	LLVM_IAS=1 \
