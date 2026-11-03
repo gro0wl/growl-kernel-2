@@ -88,6 +88,7 @@ atomic_t lcm_ready = ATOMIC_INIT(0);
 atomic_t lcm_valid_irq = ATOMIC_INIT(0);
 #endif
 bool g_trigger_disp_esd_recovery;
+bool esd_flag;
 
 static unsigned int esd_check_mode;
 static unsigned int esd_check_enable;
@@ -679,11 +680,32 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 	int ret = 0;
 	int i = 0;
 	int esd_try_cnt = 5; /* 20; */
+#ifndef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
 	int recovery_done = 0;
+#endif
 
 	sched_setscheduler(current, SCHED_RR, &param);
 
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	while (1) {
+next:		if (!atomic_read(&lcm_ready)) {
+			msleep(700);
+			continue;
+		}
 
+		i = 0;
+		do {
+			ret = do_esd_check_eint();
+			if (!ret)
+				break;
+
+			DISPERR("[ESD]error-flag check failed; recovery try=%d\n", i);
+			esd_flag = true;
+			primary_display_esd_recovery();
+			goto next;
+		} while (++i < esd_try_cnt);
+	}
+#else
 	while (1) {
 		msleep(2000); /* 2s */
 		ret = wait_event_interruptible(_check_task_wq,
@@ -692,11 +714,6 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 			DISPINFO("[ESD]check thread waked up accidently\n");
 			continue;
 		}
-
-#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
-		if (!atomic_read(&lcm_ready))
-			continue;
-#endif
 
 		_primary_path_switch_dst_lock();
 
@@ -747,6 +764,7 @@ static int primary_display_check_recovery_worker_kthread(void *data)
 		if (kthread_should_stop())
 			break;
 	}
+#endif
 	return 0;
 }
 

@@ -134,6 +134,9 @@ extern bool fts_gesture_flag;
 
 extern int32_t fts_ts_tp_suspend(void);
 extern int32_t fts_ts_tp_resume(void);
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+extern bool esd_flag;
+#endif
 
 /*****************************************************************************
  * Function Prototype
@@ -553,6 +556,12 @@ static void lcm_init(void)
 
 	fts_fwresume_work();
 	push_table(NULL, init_setting_vdo, ARRAY_SIZE(init_setting_vdo), 1);
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	if (esd_flag) {
+		LCM_LOGI("%s: resume touchscreen after ESD recovery\n", __func__);
+		fts_ts_tp_resume();
+	}
+#endif
 
 }
 
@@ -560,6 +569,12 @@ static void lcm_suspend(void)
 {
 
 	LCM_LOGI("[DENNIS][%s][%d]\n", __func__, __LINE__);
+#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
+	if (esd_flag) {
+		LCM_LOGI("%s: suspend touchscreen before ESD recovery\n", __func__);
+		fts_ts_tp_suspend();
+	}
+#endif
 
 	push_table(NULL, lcm_suspend_setting,
 		   ARRAY_SIZE(lcm_suspend_setting), 1);
@@ -571,17 +586,6 @@ static void lcm_resume(void)
 	lcm_init();
 
 }
-
-#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
-static unsigned int lcm_esd_recover(void)
-{
-	fts_ts_tp_suspend();
-	lcm_init_power();
-	lcm_init();
-	fts_ts_tp_resume();
-	return 0;
-}
-#endif
 
 static unsigned int lcm_ata_check(unsigned char *buffer)
 {
@@ -698,7 +702,4 @@ struct LCM_DRIVER dsi_panel_k19a_36_03_0c_dsc_vdo_lcm_drv = {
 	.ata_check = lcm_ata_check,
 	.update = lcm_update,
 	.set_hw_info = lcm_set_hw_info,
-#ifdef CONFIG_MI_ERRFLAG_ESD_CHECK_ENABLE
-	.esd_recover = lcm_esd_recover,
-#endif
 };
