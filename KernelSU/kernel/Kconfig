@@ -166,6 +166,13 @@ config KSU_SUSFS_SUS_KSTAT
 	help
 	  Allow configured kstat and statfs values to be spoofed.
 
+config KSU_SUSFS_SPOOF_UNAME
+	bool "Spoof uname information"
+	depends on KSU_SUSFS
+	default n
+	help
+	  Allow the reported kernel release and version to be replaced.
+
 config KSU_SUSFS_ENABLE_LOG
 	bool "Enable SUSFS kernel logging"
 	depends on KSU_SUSFS
@@ -186,6 +193,20 @@ config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
 	default n
 	help
 	  Allow /proc/cmdline or /proc/bootconfig output to be replaced.
+
+config KSU_SUSFS_OPEN_REDIRECT
+	bool "Redirect configured file opens"
+	depends on KSU_SUSFS
+	default n
+	help
+	  Redirect selected file opens and readlink results for configured paths.
+
+config KSU_SUSFS_SUS_MAP
+	bool "Hide configured memory mappings"
+	depends on KSU_SUSFS
+	default n
+	help
+	  Hide configured file-backed mappings from selected procfs views.
 
 endmenu
 
