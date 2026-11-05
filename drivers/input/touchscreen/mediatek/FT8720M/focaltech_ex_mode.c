@@ -103,6 +103,59 @@ static int fts_ex_mode_switch(enum _ex_mode mode, u8 value)
 	return ret;
 }
 
+static void fts_set_charger_mode(struct fts_ts_data *ts_data, bool enable)
+{
+	int ret;
+
+	if (!ts_data || !ts_data->input_dev)
+		return;
+
+	mutex_lock(&ts_data->input_dev->mutex);
+	if (ts_data->charger_mode != enable) {
+		ret = fts_ex_mode_switch(MODE_CHARGER,
+				enable ? ENABLE : DISABLE);
+		if (ret >= 0) {
+			ts_data->charger_mode = enable;
+			FTS_INFO("charger mode %s", enable ? "enabled" : "disabled");
+		}
+	}
+	mutex_unlock(&ts_data->input_dev->mutex);
+}
+
+static void fts_charger_mode_work(struct work_struct *work)
+{
+	struct fts_ts_data *ts_data = container_of(to_delayed_work(work),
+			struct fts_ts_data, charger_work);
+	struct power_supply *battery;
+	int online;
+
+	/* The helper assumes external power when no supplies are registered. */
+	battery = power_supply_get_by_name("battery");
+	if (!battery) {
+		mod_delayed_work(system_wq, &ts_data->charger_work,
+				 msecs_to_jiffies(1000));
+		return;
+	}
+	power_supply_put(battery);
+
+	online = power_supply_is_system_supplied();
+	if (online >= 0)
+		fts_set_charger_mode(ts_data, online > 0);
+}
+
+static int fts_power_supply_notify(struct notifier_block *nb,
+				   unsigned long event, void *data)
+{
+	struct fts_ts_data *ts_data = container_of(nb, struct fts_ts_data,
+						   charger_notifier);
+
+	if (event == PSY_EVENT_PROP_CHANGED)
+		mod_delayed_work(system_wq, &ts_data->charger_work,
+				 msecs_to_jiffies(200));
+
+	return NOTIFY_OK;
+}
+
 static ssize_t fts_glove_mode_show(
 	struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -220,25 +273,12 @@ static ssize_t fts_charger_mode_store(
 	struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	int ret = 0;
 	struct fts_ts_data *ts_data = fts_data;
 
 	if (FTS_SYSFS_ECHO_ON(buf)) {
-		if (!ts_data->charger_mode) {
-			FTS_DEBUG("enter charger mode");
-			ret = fts_ex_mode_switch(MODE_CHARGER, ENABLE);
-			if (ret >= 0) {
-				ts_data->charger_mode = ENABLE;
-			}
-		}
+		fts_set_charger_mode(ts_data, true);
 	} else if (FTS_SYSFS_ECHO_OFF(buf)) {
-		if (ts_data->charger_mode) {
-			FTS_DEBUG("exit charger mode");
-			ret = fts_ex_mode_switch(MODE_CHARGER, DISABLE);
-			if (ret >= 0) {
-				ts_data->charger_mode = DISABLE;
-			}
-		}
+		fts_set_charger_mode(ts_data, false);
 	}
 
 	FTS_DEBUG("charger mode:%d", ts_data->charger_mode);
@@ -389,6 +429,7 @@ int fts_ex_mode_init(struct fts_ts_data *ts_data)
 	ts_data->cover_mode = DISABLE;
 	ts_data->charger_mode = DISABLE;
 	ts_data->edge_mode = DISABLE;
+	INIT_DELAYED_WORK(&ts_data->charger_work, fts_charger_mode_work);
 
 	ret = sysfs_create_group(&ts_data->dev->kobj, &fts_touch_mode_group);
 	if (ret < 0) {
@@ -399,11 +440,25 @@ int fts_ex_mode_init(struct fts_ts_data *ts_data)
 		FTS_DEBUG("create sysfs(ex_mode) succeedfully");
 	}
 
+	ts_data->charger_notifier.notifier_call = fts_power_supply_notify;
+	ret = power_supply_reg_notifier(&ts_data->charger_notifier);
+	if (ret) {
+		FTS_ERROR("register power supply notifier failed: %d", ret);
+	} else {
+		ts_data->charger_notifier_registered = true;
+	}
+	schedule_delayed_work(&ts_data->charger_work, msecs_to_jiffies(1000));
+
 	return 0;
 }
 
 int fts_ex_mode_exit(struct fts_ts_data *ts_data)
 {
+	if (ts_data->charger_notifier_registered) {
+		power_supply_unreg_notifier(&ts_data->charger_notifier);
+		ts_data->charger_notifier_registered = false;
+	}
+	cancel_delayed_work_sync(&ts_data->charger_work);
 	sysfs_remove_group(&ts_data->dev->kobj, &fts_touch_mode_group);
 	return 0;
 }

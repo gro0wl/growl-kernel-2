@@ -51,6 +51,7 @@
 #include <linux/debugfs.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/power_supply.h>
 #include <linux/wait.h>
 #include <linux/time.h>
 #include <linux/jiffies.h>
@@ -192,7 +193,9 @@ struct fts_ts_data {
 	struct work_struct fwupg_work;
 	struct delayed_work esdcheck_work;
 	struct delayed_work prc_work;
+	struct delayed_work charger_work;
 	struct work_struct resume_work;
+	struct notifier_block charger_notifier;
 	struct ftxxxx_proc proc;
 	spinlock_t irq_lock;
 	struct mutex report_mutex;
@@ -216,6 +219,7 @@ struct fts_ts_data {
 	bool glove_mode;
 	bool cover_mode;
 	bool charger_mode;
+	bool charger_notifier_registered;
 	bool gesture_mode;	  /* gesture enable or disable, default: disable */
 	u8 edge_mode;
 	bool prc_mode;
